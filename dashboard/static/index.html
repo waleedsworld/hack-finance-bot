@@ -9,14 +9,16 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
 <style>
   :root {
+    color-scheme: dark;
     --bg: #070b0c;
     --panel: #0d1416;
     --panel-2: #101a1c;
     --line: #1c2a2c;
     --ink: #d7e6e2;
-    --muted: #6f8a86;
+    --muted: #8ba6a1;        /* brightened for AA contrast on near-black */
     --green: #34e39b;
     --green-dim: #1c6b52;
+    --green-read: #3fd497;   /* readable green for small bold text */
     --amber: #ffb84d;
     --red: #ff5c6c;
     --grid: rgba(52, 227, 155, 0.04);
@@ -25,6 +27,17 @@
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  /* screen-reader-only content */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+  }
+
+  /* visible keyboard focus */
+  a:focus-visible, button:focus-visible, [tabindex]:focus-visible, tbody tr:focus-visible {
+    outline: 2px solid var(--green); outline-offset: 2px; border-radius: 4px;
+  }
 
   html, body { height: 100%; }
 
@@ -160,10 +173,21 @@
 
   .empty { padding: 46px 20px; text-align: center; color: var(--muted); font-size: 13px; }
   .empty .blink { animation: blink 1.1s steps(1) infinite; }
+  .empty.err { color: var(--amber); }
   @keyframes blink { 50% { opacity: 0; } }
 
+  /* loading skeleton for stat values */
+  .value.loading { color: transparent; position: relative; }
+  .value.loading::after {
+    content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 62%; height: 22px; border-radius: 6px;
+    background: linear-gradient(90deg, var(--line) 25%, #223434 37%, var(--line) 63%);
+    background-size: 400% 100%; animation: shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+
   footer { margin-top: 28px; color: var(--muted); font-size: 11px; letter-spacing: .05em; text-align: center; }
-  footer b { color: var(--green-dim); font-weight: 500; }
+  footer b { color: var(--green-read); font-weight: 600; }
 
   /* fade-in */
   .fade { animation: fade .5s ease both; }
@@ -182,47 +206,59 @@
     .meter { width: 150px; }
   }
   @media (max-width: 430px) { .stats { grid-template-columns: 1fr; } }
+
+  /* respect users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: .001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: .001ms !important;
+    }
+    .dot { animation: none; }
+    body::after { display: none; }
+    .value.loading::after { animation: none; }
+  }
 </style>
 </head>
 <body>
   <div class="wrap">
     <header class="fade">
       <div class="brand">
-        <div class="glyph">
-          <svg viewBox="0 0 24 24" fill="none" stroke="#34e39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <div class="glyph" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#34e39b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" focusable="false" aria-hidden="true">
             <path d="M3 17l5-6 4 4 6-8"/><path d="M3 21h18"/>
           </svg>
         </div>
         <div class="title">
           <h1>PAIR&#8209;COST TERMINAL</h1>
-          <div class="sub">Polymarket &times; Kalshi &middot; profit-locking arbitrage</div>
+          <p class="sub">Polymarket &times; Kalshi &middot; profit-locking arbitrage</p>
         </div>
       </div>
       <div class="status">
-        <div class="pill"><span class="dot" id="live-dot"></span><span id="live-text">Live feed</span></div>
-        <div class="pill"><span class="clock" id="clock">--:--:--</span></div>
+        <div class="pill" role="status" aria-live="polite"><span class="dot" id="live-dot" aria-hidden="true"></span><span id="live-text">Live feed</span></div>
+        <div class="pill"><span class="clock" id="clock" aria-label="Current time">--:--:--</span></div>
       </div>
     </header>
 
-    <section class="stats" id="stats">
-      <div class="card fade">
-        <div class="label">Total exposure</div>
-        <div class="value" id="s-exposure">$0.00</div>
+    <section class="stats" id="stats" aria-label="Key metrics">
+      <div class="card fade" role="group" aria-labelledby="l-exposure">
+        <div class="label" id="l-exposure">Total exposure</div>
+        <div class="value loading" id="s-exposure" aria-live="polite">$0.00</div>
         <div class="foot">Capital at work across books</div>
       </div>
-      <div class="card fade" style="animation-delay:.06s">
-        <div class="label">Locked profit</div>
-        <div class="value pos" id="s-profit">$0.00</div>
+      <div class="card fade" style="animation-delay:.06s" role="group" aria-labelledby="l-profit">
+        <div class="label" id="l-profit">Locked profit</div>
+        <div class="value pos loading" id="s-profit" aria-live="polite">$0.00</div>
         <div class="foot">Mathematically guaranteed</div>
       </div>
-      <div class="card amber fade" style="animation-delay:.12s">
-        <div class="label">Active positions</div>
-        <div class="value warn" id="s-active">0</div>
+      <div class="card amber fade" style="animation-delay:.12s" role="group" aria-labelledby="l-active">
+        <div class="label" id="l-active">Active positions</div>
+        <div class="value warn loading" id="s-active" aria-live="polite">0</div>
         <div class="foot">Markets currently tracked</div>
       </div>
-      <div class="card muted fade" style="animation-delay:.18s">
-        <div class="label">Locked books</div>
-        <div class="value" id="s-locked">0</div>
+      <div class="card muted fade" style="animation-delay:.18s" role="group" aria-labelledby="l-locked">
+        <div class="label" id="l-locked">Locked books</div>
+        <div class="value loading" id="s-locked" aria-live="polite">0</div>
         <div class="foot">Pairs past the profit line</div>
       </div>
     </section>
@@ -232,20 +268,21 @@
         <h2>OPEN POSITIONS</h2>
         <div class="hint">pair cost &lt; 1.00 = guaranteed edge &middot; auto-refresh 3s</div>
       </div>
-      <div style="overflow-x:auto">
+      <div style="overflow-x:auto" role="region" aria-label="Open positions table" tabindex="0">
         <table>
+          <caption class="sr-only">Open arbitrage positions across Polymarket and Kalshi, refreshed every 3 seconds.</caption>
           <thead>
             <tr>
-              <th>Market</th>
-              <th>State</th>
-              <th class="num">Qty YES / NO</th>
-              <th class="num">Avg YES / NO</th>
-              <th class="num">Pair cost</th>
-              <th class="num">P/L locked</th>
+              <th scope="col">Market</th>
+              <th scope="col">State</th>
+              <th scope="col" class="num">Qty YES / NO</th>
+              <th scope="col" class="num">Avg YES / NO</th>
+              <th scope="col" class="num">Pair cost</th>
+              <th scope="col" class="num">P/L locked</th>
             </tr>
           </thead>
-          <tbody id="rows">
-            <tr><td colspan="6"><div class="empty">Awaiting position feed<span class="blink">_</span></div></td></tr>
+          <tbody id="rows" aria-busy="true">
+            <tr><td colspan="6"><div class="empty">Awaiting position feed<span class="blink" aria-hidden="true">_</span></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -267,17 +304,31 @@
     return 'var(--red)';
   }
 
+  let hasLoaded = false;
+
+  function esc(s){ const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
   function renderStats(s){
-    document.getElementById('s-exposure').textContent = fmtUsd(s.total_exposure);
-    document.getElementById('s-profit').textContent = fmtUsd(s.total_locked_profit);
-    document.getElementById('s-active').textContent = fmtQty(s.active_positions);
-    document.getElementById('s-locked').textContent = fmtQty(s.locked_positions);
+    const set = (id, txt) => {
+      const el = document.getElementById(id);
+      el.classList.remove('loading');
+      el.textContent = txt;
+    };
+    set('s-exposure', fmtUsd(s.total_exposure));
+    set('s-profit', fmtUsd(s.total_locked_profit));
+    set('s-active', fmtQty(s.active_positions));
+    set('s-locked', fmtQty(s.locked_positions));
+  }
+
+  function stateRow(msg, isErr){
+    return `<tr><td colspan="6"><div class="empty${isErr?' err':''}" role="${isErr?'alert':'status'}">${esc(msg)}<span class="blink" aria-hidden="true">_</span></div></td></tr>`;
   }
 
   function renderRows(list){
     const tb = document.getElementById('rows');
+    tb.setAttribute('aria-busy', 'false');
     if (!list.length){
-      tb.innerHTML = '<tr><td colspan="6"><div class="empty">No open positions yet<span class="blink">_</span></div></td></tr>';
+      tb.innerHTML = stateRow('No open positions yet', false);
       return;
     }
     tb.innerHTML = list.map(p => {
@@ -285,16 +336,17 @@
       const pct = Math.min(100, Math.max(4, pc*100/1.1)); // 1.10 = full bar
       const col = costColor(pc);
       const locked = p.profit_locked;
-      const id = (p.market_id||'').replace(/_/g,'&#8203;_');
+      const id = esc(p.market_id||'').replace(/_/g,'&#8203;_');
+      const stateTxt = locked ? 'Profit locked' : 'Accumulating';
       return `<tr>
         <td data-l="Market"><span class="mid">${id}</span></td>
         <td data-l="State">
-          <span class="tag ${locked?'locked':'open'}"><span class="tick"></span>${locked?'Profit locked':'Accumulating'}</span>
+          <span class="tag ${locked?'locked':'open'}"><span class="tick" aria-hidden="true"></span>${stateTxt}</span>
         </td>
         <td class="num" data-l="Qty Y/N">${fmtQty(p.qty_yes)} / ${fmtQty(p.qty_no)}</td>
         <td class="num" data-l="Avg Y/N">${Number(p.avg_yes||0).toFixed(3)} / ${Number(p.avg_no||0).toFixed(3)}</td>
         <td class="num" data-l="Pair cost">
-          <div class="meter" style="margin-left:auto">
+          <div class="meter" style="margin-left:auto" role="progressbar" aria-label="Pair cost" aria-valuemin="0" aria-valuemax="1.1" aria-valuenow="${pc.toFixed(4)}" aria-valuetext="${pc.toFixed(4)}">
             <div class="bar"><div class="fill" style="width:${pct}%;background:${col};box-shadow:0 0 10px ${col}"></div></div>
             <div class="num" style="color:${col}">${pc.toFixed(4)}</div>
           </div>
@@ -302,6 +354,14 @@
         <td class="num profit ${locked?'up':'flat'}" data-l="P/L">${locked ? fmtUsd(p.locked_profit) : '—'}</td>
       </tr>`;
     }).join('');
+  }
+
+  function renderError(){
+    // only take over the table body if we never got a successful load
+    if (hasLoaded) return;
+    const tb = document.getElementById('rows');
+    tb.setAttribute('aria-busy', 'false');
+    tb.innerHTML = stateRow('Feed unavailable — retrying', true);
   }
 
   function setLive(ok){
@@ -317,8 +377,9 @@
       const list = await pR.json();
       list.sort((a,b) => (b.profit_locked?1:0)-(a.profit_locked?1:0) || (a.pair_cost||0)-(b.pair_cost||0));
       renderRows(list);
+      hasLoaded = true;
       setLive(true);
-    }catch(e){ setLive(false); }
+    }catch(e){ setLive(false); renderError(); }
   }
 
   function tickClock(){
