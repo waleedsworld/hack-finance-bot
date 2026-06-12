@@ -147,6 +147,29 @@ hack-finance-bot/
 | `GET` | `/api/trades/{market_id}` | Trade history for one market |
 | `GET` | `/api/health` | Liveness, uptime, component readiness |
 
+## Testing
+
+The core strategy math, persistence layer, and dashboard API are covered by a
+`pytest` suite under `tests/`. Install the dev dependencies and run it:
+
+```bash
+pip install -r requirements.txt -r requirements-dev.txt
+pytest
+```
+
+What's covered:
+
+- `pair_cost_engine` — average cost, pair cost, `simulate_buy` (no mutation), and profit-lock math
+- `decision_engine` — every buy/skip rule (TWAP discount, safety margin, imbalance, max position)
+- `position_tracker` — exposure and locked-profit aggregation across books
+- `price_history` — rolling TWAP, volatility, and window pruning
+- `trade_logger` — SQLite round-trips against a temporary database
+- `market_scanner` — BTC 15-min filtering and market liveness
+- `dashboard/api` — all endpoints via FastAPI's `TestClient`
+
+Tests use a throwaway SQLite file per test and never touch the network, so the
+suite runs offline in well under a second.
+
 ## A word on risk ⚠️
 
 This is educational software for studying market microstructure and arbitrage mechanics. Prediction markets are volatile, fills are not guaranteed, and "risk-free" only holds if _both_ legs actually get filled at the prices you modelled. Start in paper-trade mode, understand every rule in `decision_engine.py`, and never deploy capital you can't afford to lose. Not financial advice — just a fun, honest look at how locked-in edges work.
