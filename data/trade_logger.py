@@ -108,3 +108,34 @@ class TradeLogger:
         
         conn.close()
         return trades
+
+    def get_all_trades(self, limit: int = 500) -> List[Dict]:
+        """Get the most recent trades across every market (newest first).
+
+        Powers both the recent-activity feed and the CSV export in the
+        dashboard; `limit` keeps the payload bounded on a long-running desk.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT timestamp, market_id, side, price, quantity, cost, exchange
+            FROM trades
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (limit,))
+
+        trades = []
+        for row in cursor.fetchall():
+            trades.append({
+                "timestamp": row[0],
+                "market_id": row[1],
+                "side": row[2],
+                "price": row[3],
+                "quantity": row[4],
+                "cost": row[5],
+                "exchange": row[6]
+            })
+
+        conn.close()
+        return trades
