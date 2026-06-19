@@ -15,13 +15,13 @@ The whole idea fits on a napkin: in a YES/NO market, if you can accumulate match
 
 ![Pair-cost terminal dashboard](docs/media/dashboard.png)
 
-> **Live demo — deploying soon.** Until then, the screenshots here are the real UI, and you can run the whole thing locally in about two minutes (see below).
+> **Live demo — deploying soon.** Until then, the media here is the real UI captured from the running app, and you can run the whole thing locally in about two minutes (see below).
 
 ### 🎬 Demo
 
-![Pair-cost terminal in motion](assets/demo.gif)
+![Live terminal — pair costs updating in real time](assets/dashboard.gif)
 
-> `assets/demo.gif` is a placeholder — drop a screen recording of the terminal crossing the profit line here and it renders inline. Everything you need to capture one is in [Quick start](#quick-start-about-2-minutes).
+> `assets/` holds a fresh screenshot (`dashboard.png`) and the animated terminal (`dashboard.gif`), both captured from the running app. Everything you need to capture your own is in [Quick start](#quick-start-about-2-minutes).
 
 ---
 
