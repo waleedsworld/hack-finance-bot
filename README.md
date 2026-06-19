@@ -2,11 +2,26 @@
 
 **A profit-locking arbitrage engine for binary prediction markets — Polymarket × Kalshi — with a live pair-cost trading terminal.**
 
+<p>
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-uvicorn-009688?logo=fastapi&logoColor=white">
+  <img alt="SQLite" src="https://img.shields.io/badge/storage-SQLite-003B57?logo=sqlite&logoColor=white">
+  <img alt="Dashboard: zero build step" src="https://img.shields.io/badge/dashboard-zero%20build%20step-f5c518">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue">
+  <img alt="Status: paper-trade demo" src="https://img.shields.io/badge/status-paper--trade%20demo-brightgreen">
+</p>
+
 The whole idea fits on a napkin: in a YES/NO market, if you can accumulate matched YES and NO shares whose **average costs add up to less than $1.00**, one of them is _guaranteed_ to pay out $1.00 at settlement. The moment `avg(YES) + avg(NO) < 1.00`, profit is locked — no prediction required, just patience and disciplined fills. This repo is the machinery that hunts for that edge and a real-time dashboard that shows it happening.
 
 ![Pair-cost terminal dashboard](docs/media/dashboard.png)
 
-> **Live demo — deploying soon.** Until then, the screenshots above are the real UI, and you can run the whole thing locally in about two minutes (see below).
+> **Live demo — deploying soon.** Until then, the screenshots here are the real UI, and you can run the whole thing locally in about two minutes (see below).
+
+### 🎬 Demo
+
+![Pair-cost terminal in motion](assets/demo.gif)
+
+> `assets/demo.gif` is a placeholder — drop a screen recording of the terminal crossing the profit line here and it renders inline. Everything you need to capture one is in [Quick start](#quick-start-about-2-minutes).
 
 ---
 
@@ -97,6 +112,29 @@ PORT=8080 python start.py
 
 ---
 
+## Usage
+
+### Watch the demo desk
+
+`python start.py` is the fast path: it boots the FastAPI server, seeds a paper-trade portfolio, and nudges positions every few seconds so you can watch a book slide under the `1.00` line and lock in. Leave it running and refresh nothing — the terminal polls itself.
+
+### Drive the real bot loop
+
+`bot_main.py` is the full scanning loop: it reads `config.yaml`, initialises the exchange clients, and runs the intra-market pair-cost strategy plus a cross-platform scan every cycle, logging each snapshot to SQLite and firing alerts when a book locks. Keep `PAPER_TRADE=true` in your environment until you trust it.
+
+```bash
+PAPER_TRADE=true python bot_main.py
+```
+
+### Command-line knobs
+
+`main.py` exposes the loop with flags for quick experiments:
+
+```bash
+python main.py --interval 30 --safety-margin 0.98   # dry-run by default
+python main.py --live                                # arms live trading (5s abort window)
+```
+
 ## Going live (optional)
 
 Real trading needs credentials. Copy them into a `.env` file at the project root:
@@ -120,11 +158,44 @@ MAX_POSITION_SIZE=1000
 
 All knobs are read in `config.py`, so tweak there or via environment variables. **Please leave `DRY_RUN_MODE=true` while you learn the system** — this is real money against real order books, and the safety margin is your friend.
 
-## Project structure
+## Architecture
+
+The bot is a scan → decide → track → persist → visualise pipeline. The math core stays pure and testable; everything network-facing lives at the edges.
+
+```
+        ┌────────────────┐      scan       ┌────────────────────┐
+        │  Polymarket /  │ ──────────────▶ │  data/             │
+        │  Kalshi books  │                 │  market_scanner.py │
+        └────────────────┘                 │  price_history.py  │ ── rolling TWAP
+                                            └─────────┬──────────┘
+                                                      │ prices + TWAP
+                                                      ▼
+        ┌────────────────────┐   should_buy?   ┌────────────────────┐
+        │ core/              │ ◀────────────── │ core/              │
+        │ pair_cost_engine   │                 │ decision_engine.py │
+        │ (MarketPosition)   │ ──── fills ───▶ │ (TWAP, safety,     │
+        └─────────┬──────────┘                 │  imbalance guards) │
+                  │ pair_cost / locked_profit  └────────────────────┘
+                  ▼
+        ┌────────────────────┐   snapshots   ┌────────────────────┐
+        │ core/              │ ────────────▶ │ data/              │
+        │ position_tracker   │               │ trade_logger.py    │ ── SQLite
+        └─────────┬──────────┘               └────────────────────┘
+                  │ exposure / locked profit
+                  ▼
+        ┌────────────────────┐   JSON /api    ┌────────────────────┐
+        │ dashboard/api.py   │ ────────────▶ │ static/index.html  │ ── live terminal
+        │ (FastAPI)          │               │ (auto-refresh 3s)  │
+        └────────────────────┘               └────────────────────┘
+```
+
+### Project structure
 
 ```
 hack-finance-bot/
 ├── start.py                 # ▶ entry point — dashboard + paper-trade demo
+├── main.py                  # CLI runner for the bot loop (--live, --interval)
+├── bot_main.py              # full scan/decide/track loop with strategies + alerts
 ├── config.py                # environment-driven configuration
 ├── core/
 │   ├── pair_cost_engine.py  # the profit-locking math (MarketPosition)
