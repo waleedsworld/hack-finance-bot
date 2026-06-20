@@ -31,6 +31,8 @@ The terminal colours every book by this metric — green under the line, amber n
 - 📡 **Market scanner** — filters Polymarket for the fast 15-minute BTC books where the edge shows up (`data/market_scanner.py`).
 - 🕰️ **Rolling TWAP + volatility** — time-windowed price history for smarter entries (`data/price_history.py`).
 - 🗃️ **SQLite trade & position logging** — every fill and snapshot persisted (`data/trade_logger.py`).
+- 📊 **Desk-health analytics** — `/api/analytics` derives return-on-exposure, average pair cost, capital concentration, and the book nearest to locking, surfaced as a live strip on the terminal (`core/analytics.py`).
+- ⬇️ **Trade blotter export** — one-click CSV download of the full fill history from the header (`/api/trades.csv`).
 - ❤️ **Health endpoint** — `/api/health` reports uptime and readiness for uptime monitors.
 - 🧾 **Paper-trade first** — the shipped demo simulates a live desk so you can watch a book cross the profit line with zero risk.
 

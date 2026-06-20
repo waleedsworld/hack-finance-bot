@@ -67,14 +67,20 @@ async def simulate_trading():
         position = tracker.get_position(market_id)
         
         if not position.is_profit_locked:
-            # Add small amounts
+            # Add small amounts, and log the fill so the trade blotter /
+            # CSV export reflect the simulated activity.
+            qty = 10
             if random.random() > 0.5:
-                position.qty_yes += 10
-                position.cost_yes += random.uniform(4, 5)
+                cost = random.uniform(4, 5)
+                position.qty_yes += qty
+                position.cost_yes += cost
+                logger.log_trade(market_id, "YES", cost / qty, qty)
             else:
-                position.qty_no += 10
-                position.cost_no += random.uniform(4, 5)
-            
+                cost = random.uniform(4, 5)
+                position.qty_no += qty
+                position.cost_no += cost
+                logger.log_trade(market_id, "NO", cost / qty, qty)
+
             print(f"📊 Updated {market_id[:15]}... - Pair cost: {position.pair_cost:.4f}")
 
 def run_dashboard():
@@ -85,8 +91,8 @@ def run_dashboard():
     print(f"\n📡 Dashboard running on port {PORT}")
     print("\n✨ Features:")
     print("   - Real-time position tracking")
-    print("   - Multiple trading profiles (Conservative, Moderate, Aggressive)")
-    print("   - Strategy switching (Pair Cost, Cross-Platform, Copy Trading)")
+    print("   - Portfolio health analytics (/api/analytics)")
+    print("   - One-click trade blotter CSV export (/api/trades.csv)")
     print("   - Live profit calculations")
     print("\n⌨️  Press Ctrl+C to stop\n")
     

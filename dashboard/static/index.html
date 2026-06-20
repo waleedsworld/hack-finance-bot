@@ -106,6 +106,29 @@
     100% { box-shadow: 0 0 0 0 rgba(52,227,155,0); }
   }
   .clock { color: var(--ink); }
+  .export {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--green); text-decoration: none; cursor: pointer;
+    padding: 6px 11px; border-radius: 8px;
+    border: 1px solid var(--green-dim); background: rgba(52,227,155,.06);
+    transition: background .18s ease, border-color .18s ease;
+  }
+  .export:hover { background: rgba(52,227,155,.14); border-color: var(--green); }
+  .export svg { width: 13px; height: 13px; }
+
+  /* ---- desk health strip ---- */
+  .health {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px;
+    background: var(--line); margin-bottom: 22px;
+    border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+  }
+  .health .cell { background: linear-gradient(180deg, var(--panel-2), var(--panel)); padding: 14px 16px; }
+  .health .k { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); }
+  .health .v { font-family: var(--display); font-weight: 700; font-size: 20px; margin-top: 7px; color: #eafff6; font-variant-numeric: tabular-nums; }
+  .health .v small { font-size: 11px; color: var(--muted); font-weight: 500; letter-spacing: .02em; }
+  @media (max-width: 760px) { .health { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 430px) { .health { grid-template-columns: 1fr; } }
 
   /* ---- stat grid ---- */
   .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
@@ -237,6 +260,10 @@
       <div class="status">
         <div class="pill" role="status" aria-live="polite"><span class="dot" id="live-dot" aria-hidden="true"></span><span id="live-text">Live feed</span></div>
         <div class="pill"><span class="clock" id="clock" aria-label="Current time">--:--:--</span></div>
+        <a class="export" href="/api/trades.csv" download title="Download the full trade blotter as CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>
+          Export CSV
+        </a>
       </div>
     </header>
 
@@ -260,6 +287,25 @@
         <div class="label" id="l-locked">Locked books</div>
         <div class="value loading" id="s-locked" aria-live="polite">0</div>
         <div class="foot">Pairs past the profit line</div>
+      </div>
+    </section>
+
+    <section class="health fade" style="animation-delay:.2s" id="health">
+      <div class="cell">
+        <div class="k">Return on exposure</div>
+        <div class="v" id="h-roe">—</div>
+      </div>
+      <div class="cell">
+        <div class="k">Avg pair cost</div>
+        <div class="v" id="h-apc">—</div>
+      </div>
+      <div class="cell">
+        <div class="k">Concentration</div>
+        <div class="v" id="h-conc">—</div>
+      </div>
+      <div class="cell">
+        <div class="k">Nearest to lock</div>
+        <div class="v" id="h-near">—</div>
       </div>
     </section>
 
@@ -324,6 +370,22 @@
     return `<tr><td colspan="6"><div class="empty${isErr?' err':''}" role="${isErr?'alert':'status'}">${esc(msg)}<span class="blink" aria-hidden="true">_</span></div></td></tr>`;
   }
 
+  const fmtPct = n => (Number(n||0)*100).toFixed(1) + '%';
+
+  function renderHealth(a){
+    document.getElementById('h-roe').textContent = fmtPct(a.return_on_exposure);
+    document.getElementById('h-apc').textContent = Number(a.avg_pair_cost||0).toFixed(4);
+    document.getElementById('h-conc').textContent = fmtPct(a.concentration);
+    const near = a.nearest_to_lock;
+    const el = document.getElementById('h-near');
+    if (near){
+      const id = (near.market_id||'').replace(/_/g,'&#8203;_');
+      el.innerHTML = `${near.pair_cost.toFixed(4)} <small>&middot; +${near.spread_to_lock.toFixed(4)} to lock</small>`;
+    } else {
+      el.innerHTML = '<small>all books locked</small>';
+    }
+  }
+
   function renderRows(list){
     const tb = document.getElementById('rows');
     tb.setAttribute('aria-busy', 'false');
@@ -371,9 +433,12 @@
 
   async function refresh(){
     try{
-      const [sR, pR] = await Promise.all([fetch('/api/stats'), fetch('/api/positions')]);
-      if(!sR.ok || !pR.ok) throw new Error('bad');
+      const [sR, pR, aR] = await Promise.all([
+        fetch('/api/stats'), fetch('/api/positions'), fetch('/api/analytics')
+      ]);
+      if(!sR.ok || !pR.ok || !aR.ok) throw new Error('bad');
       renderStats(await sR.json());
+      renderHealth(await aR.json());
       const list = await pR.json();
       list.sort((a,b) => (b.profit_locked?1:0)-(a.profit_locked?1:0) || (a.pair_cost||0)-(b.pair_cost||0));
       renderRows(list);
